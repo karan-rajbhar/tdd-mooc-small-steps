@@ -5,19 +5,6 @@ import express from "express";
 // Refactor the following code to get rid of the legacy Date class.
 // Use Temporal.PlainDate instead. See /test/date_conversion.spec.mjs for examples.
 
-function dateToTemporal(date) {
-  if (date instanceof Date) {
-
-    return date
-      .toTemporalInstant()
-      .toZonedDateTimeISO("UTC")
-      .toPlainDate()
-  } else {
-    return date
-  }
-
-}
-
 
 function createApp(database) {
   const app = express();
@@ -33,22 +20,24 @@ function createApp(database) {
     const age = req.query.age;
     const type = req.query.type;
     const baseCost = database.findBasePriceByType(type).cost;
-    const date = parseDate(req.query.date);
-    const cost = calculateCost(age, type, date, baseCost);
+    const date= parsePlainDate(req.query.date)
+    
+    const cost = calculateCost(age, type, date, baseCost );
     res.json({ cost });
   });
 
-  function parseDate(dateString) {
+
+  function parsePlainDate(dateString) {
     if (dateString) {
-      return new Date(dateString);
+      return Temporal.PlainDate.from(dateString)
     }
   }
 
-  function calculateCost(age, type, date, baseCost) {
+  function calculateCost(age, type, date, baseCost ) {
     if (type === "night") {
       return calculateCostForNightTicket(age, baseCost);
     } else {
-      return calculateCostForDayTicket(age, date, baseCost);
+      return calculateCostForDayTicket(age, date, baseCost );
     }
   }
 
@@ -84,18 +73,19 @@ function createApp(database) {
 
   function calculateReduction(date) {
     let reduction = 0;
-    if (date && isMonday(date) && !isHoliday(dateToTemporal(date))) {
+    if (date && isMonday(date) && !isHoliday(date)) {
       reduction = 35;
     }
     return reduction;
   }
 
   function isMonday(date) {
-    return date.getDay() === 1;
+    return  date.dayOfWeek === 1;
   }
 
   function isHoliday(date) {
     const holidays = database.getHolidays();
+  
     for (let row of holidays) {
       let holiday = Temporal.PlainDate.from(row.holiday);
       if (date && date.equals(holiday)) {
